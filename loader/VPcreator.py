@@ -1,8 +1,9 @@
-import sys, re
+import sys, re, argparse
 from pyspark import SparkContext
 from pyspark.sql import HiveContext
 from pyspark.sql import DataFrameWriter
 import pyspark.sql.functions as f
+
 
 """
 valid_string converts in '_' all the characters that are not
@@ -32,39 +33,43 @@ class VP_creator:
         triple_table = self.sqlContext.sql(
             "CREATE EXTERNAL TABLE tripletable (s STRING, p STRING, o STRING) ROW FORMAT DELIMITED" \
             + " FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' LOCATION '"+ self.inputFile +"'")
-        
+        count_tt = triple_table.count()
+        print "Triple Table created. There are %d triples." % count_tt 
+    
     def extract_properties(self):
         # we assume that the number of properties is small
-	    for p in self.sqlContext.sql('SELECT DISTINCT * FROM tripletable').collect():
-		    self.properties[p["p"]] = True
+        for p in self.sqlContext.sql('SELECT DISTINCT * FROM tripletable').collect():
+            self.properties[p["p"]] = True
+        print "Properties Extracted. There are %(num)d properties" % {"num": len(self.properties)}
 
     def create_VP_tables(self):
-        print "There are %(num)d properties" % {"num": len(self.properties)}
+        print "Beginning the creation of VP tables."
+        total_properties = len(self.properties)
+        i = 0
         # for each distinct property, create a table
         for p in self.properties:
+            i += 1
             prop_df = self.sqlContext.sql("SELECT s AS s, o AS o FROM tripletable WHERE p='" + p + "'")
             df_writer = DataFrameWriter(prop_df)
             df_writer.saveAsTable("VP_" + valid_string(p))
-    
+            sys.stdout.write("\rTables created: %d / %d " % (i, total_properties))
+        print "Tables created: %d / %d "  % (i, total_properties)
+
     def run_creator(self):
         self.create_triple_table()
         self.extract_properties()
         self.create_VP_tables()
 
-
-""" 
-TODO: use the CLI options
-TODO: print or log statistics (e.g. number of properties created)
-"""
 def main():
+    parser = argparse.ArgumentParser(description='Load a RDF into the Hive Mestastore using Vertical Partitioning.')
+    parser.add_argument('input', metavar='[input file]', help='The HDFS path of the input RDF file.')
+    parser.add_argument('output', metavar='[output database]', help='The name of the database where to load the data. ')
+    args = parser.parse_args()
+
     sc = SparkContext(appName="GYM_loader")
     sqlContext = HiveContext(sc)
-    if len(sys.argv) < 3:
-        print "Usage:", sys.argv[0], "[input file] [output database]"
-        sys.exit()
-    inp_file = sys.argv[1]
-    out_db = sys.argv[2]
-    creator = VP_creator(sc, sqlContext, inp_file, out_db)
+   
+    creator = VP_creator(sc, sqlContext, args.input, args.output)
     creator.run_creator()
 
 if __name__ == "__main__":
