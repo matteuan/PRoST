@@ -41,7 +41,7 @@ public class Main {
 		Option outputOpt = new Option("o", "output", true, "Custom output filename");
 		options.addOption(outputOpt);
 		Option statOpt = new Option("s", "stats", true, "Folder with optional statistics");
-		statOpt.setRequired(true);
+		//statOpt.setRequired(true);
 		options.addOption(statOpt);
 		Option helpOpt = new Option("h", "help", true, "Print this help.");
 		options.addOption(helpOpt);
@@ -52,12 +52,14 @@ public class Main {
 			cmd = parser.parse(options, args);
 		} catch(MissingOptionException e){
 			 formatter.printHelp("JAR", "Translate a SPARQL query in a Spark Plan", options, "", true);
+			 return;
 		} catch (ParseException e) {
 			e.printStackTrace();
 		}
 		
 		if(cmd.hasOption("help")){
 			formatter.printHelp("JAR", "Translate a SPARQL query in a Spark Plan", options, "", true);
+			return;
 		}
 		if(cmd.hasOption("input")){
 			inputFile = cmd.getOptionValue("input");
@@ -69,6 +71,12 @@ public class Main {
 			statsPath = cmd.getOptionValue("stats");
 			logger.info("VP statistics are being used.");
 		}
+		
+		/*
+		 * Translation Phase
+		 */
+		Translator translator = new Translator(inputFile, outputFile, statsPath);
+		translator.translateQuery();
 	}
 
 }
