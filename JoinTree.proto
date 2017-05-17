@@ -1,0 +1,19 @@
+message Triple {
+	enum ElementType {
+		VARIABLE = 0;
+		CONSTANT = 1;
+	}
+	message Element {
+		required string name = 1;
+		required ElementType type = 2;
+	}
+	required Element subject = 1;
+	required Element predicate = 2;
+	required Element object = 3;
+}
+
+message Node {
+	required Triple triple = 1;
+	repeated Node children = 2;
+	repeated string projection = 3;
+}
