@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.List;
 
+import org.apache.log4j.Logger;
+
 import run.JoinTree.Node;
 
 import com.hp.hpl.jena.graph.Triple;
@@ -31,6 +33,7 @@ public class Translator {
     String statsPath;
     List<Var> variables;
     List<Triple> triples;
+    private static final Logger logger = Logger.getLogger(Main.class);
     
     public Translator(String input, String output, String statsPath) {
     	this.inputFile = input;
@@ -45,6 +48,8 @@ public class Translator {
         // TODO: consider prefixes
         PrefixMapping prefixes = query.getPrefixMapping();
         
+        logger.info("*** SPARQL QUERY ***\n" + query +"\n********************"  );
+        
         // extract variables and list of triples from the unique BGP
         OpProject opRoot = (OpProject) Algebra.compile(query);
         OpBGP singleBGP = (OpBGP) opRoot.getSubOp();
@@ -53,6 +58,7 @@ public class Translator {
         
         // build the tree and serialize it
         Node tree = buildTree();
+        logger.info("*** Spark JoinTree ***\n" + tree +"\n********************" );
         
         // output the file
         FileOutputStream fop;
@@ -65,9 +71,12 @@ public class Translator {
 			
 			tree.writeDelimitedTo(fop);
         } catch (IOException e) {
+        	logger.error("Impossible to write the output file");
 			e.printStackTrace();
+			return;
 		} 
-
+        
+        logger.info("Output file written with success");
     }
     
     private class NodeTriplePair {

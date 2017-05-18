@@ -41,7 +41,6 @@ public class Main {
 		Option outputOpt = new Option("o", "output", true, "Custom output filename");
 		options.addOption(outputOpt);
 		Option statOpt = new Option("s", "stats", true, "Folder with optional statistics");
-		//statOpt.setRequired(true);
 		options.addOption(statOpt);
 		Option helpOpt = new Option("h", "help", true, "Print this help.");
 		options.addOption(helpOpt);
@@ -66,6 +65,7 @@ public class Main {
 		}
 		if(cmd.hasOption("output")){
 			outputFile = cmd.getOptionValue("output");
+			logger.info("Output file set to:" + outputFile);
 		}
 		if(cmd.hasOption("stats")){
 			statsPath = cmd.getOptionValue("stats");
