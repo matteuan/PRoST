@@ -7,7 +7,6 @@ import java.util.ArrayDeque;
 import java.util.List;
 
 import run.JoinTree.Node;
-import run.JoinTree.Node.Builder;
 
 import com.hp.hpl.jena.graph.Triple;
 import com.hp.hpl.jena.query.Query;
@@ -102,7 +101,6 @@ public class Translator {
 
     	// visit the hypergraph to build the tree
     	JoinTree.Node.Builder currentNode = treeBuilder;
-    	JoinTree.Node.Builder father = treeBuilder;
     	ArrayDeque<NodeTriplePair> visitableNodes = new ArrayDeque<NodeTriplePair>();
     	while(triplesQueue.size() > 0){
     		
