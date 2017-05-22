@@ -8,7 +8,7 @@ import java.util.List;
 
 import org.apache.log4j.Logger;
 
-import run.JoinTree.Node;
+import run.ProtobufJoinTree.Node;
 
 import com.hp.hpl.jena.graph.Triple;
 import com.hp.hpl.jena.query.Query;
@@ -22,7 +22,6 @@ import com.hp.hpl.jena.sparql.core.Var;
 /**
  * This class parses the SPARQL query,
  * build the Tree and save its serialization in a file.
- * TODO: set the logger properly
  *
  * @author Matteo Cossu
  */
@@ -69,7 +68,7 @@ public class Translator {
 			if (!file.exists()) 
 				file.createNewFile();
 			
-			tree.writeDelimitedTo(fop);
+			tree.writeTo(fop);
         } catch (IOException e) {
         	logger.error("Impossible to write the output file");
 			e.printStackTrace();
@@ -80,10 +79,10 @@ public class Translator {
     }
     
     private class NodeTriplePair {
-        public JoinTree.Node.Builder node;
+        public ProtobufJoinTree.Node.Builder node;
         public Triple triple;
 
-        public NodeTriplePair(JoinTree.Node.Builder node, Triple triple){
+        public NodeTriplePair(ProtobufJoinTree.Node.Builder node, Triple triple){
             this.node = node;
             this.triple = triple;
         }
@@ -97,7 +96,7 @@ public class Translator {
     	ArrayDeque<Triple> triplesQueue = new ArrayDeque<Triple> (triples);
     	
     	// create a builder (protobuf)
-    	JoinTree.Node.Builder treeBuilder = Node.newBuilder();
+    	ProtobufJoinTree.Node.Builder treeBuilder = Node.newBuilder();
     	
     	// set the root node with the variables that need to be projected
     	for(int i = 0; i < variables.size(); i++)
@@ -105,11 +104,11 @@ public class Translator {
     	
     	// and add a triple to it
     	Triple currentTriple = triplesQueue.pop();
-    	JoinTree.Triple.Builder rootTriple = buildTriple(currentTriple);
+    	ProtobufJoinTree.Triple.Builder rootTriple = buildTriple(currentTriple);
     	treeBuilder.setTriple(rootTriple);
 
     	// visit the hypergraph to build the tree
-    	JoinTree.Node.Builder currentNode = treeBuilder;
+    	ProtobufJoinTree.Node.Builder currentNode = treeBuilder;
     	ArrayDeque<NodeTriplePair> visitableNodes = new ArrayDeque<NodeTriplePair>();
     	while(triplesQueue.size() > 0){
     		
@@ -117,7 +116,7 @@ public class Translator {
     		Triple newTriple = findRelateTriple(currentTriple, triplesQueue);
     		while(newTriple != null){
     			// create the new child
-    			JoinTree.Node.Builder newChild = Node.newBuilder();
+    			ProtobufJoinTree.Node.Builder newChild = Node.newBuilder();
     			newChild.setTriple(buildTriple(newTriple));
     			
     			// append it to the current node and to the queue
@@ -148,33 +147,33 @@ public class Translator {
      * buildTriple takes as input a Jena Triple
      * and produces a builder of triples belonging to JoinTree type
      */
-    private JoinTree.Triple.Builder buildTriple(Triple triple){
-    	JoinTree.Triple.Builder tripleBuilder = JoinTree.Triple.newBuilder();
+    private ProtobufJoinTree.Triple.Builder buildTriple(Triple triple){
+    	ProtobufJoinTree.Triple.Builder tripleBuilder = ProtobufJoinTree.Triple.newBuilder();
     	// extract and set the subject
     	if(triple.getSubject().isVariable())
     		tripleBuilder.setSubject(tripleBuilder.getSubjectBuilder()
         			.setName(triple.getSubject().getName())
-        			.setType(JoinTree.Triple.ElementType.VARIABLE));
+        			.setType(ProtobufJoinTree.Triple.ElementType.VARIABLE));
     	else
     		tripleBuilder.setSubject(tripleBuilder.getSubjectBuilder()
         			.setName(triple.getSubject().toString())
-        			.setType(JoinTree.Triple.ElementType.CONSTANT));
+        			.setType(ProtobufJoinTree.Triple.ElementType.CONSTANT));
     		
     	
     	// extract and set the predicate
     	tripleBuilder.setPredicate(tripleBuilder.getPredicateBuilder()
     			.setName(triple.getPredicate().toString())
-    			.setType(JoinTree.Triple.ElementType.CONSTANT));
+    			.setType(ProtobufJoinTree.Triple.ElementType.CONSTANT));
     	
     	// extract and set the object
     	if(triple.getObject().isVariable())
     		tripleBuilder.setObject(tripleBuilder.getObjectBuilder()
         			.setName(triple.getObject().getName())
-        			.setType(JoinTree.Triple.ElementType.VARIABLE));
+        			.setType(ProtobufJoinTree.Triple.ElementType.VARIABLE));
     	else
     		tripleBuilder.setObject(tripleBuilder.getObjectBuilder()
         			.setName(triple.getObject().toString())
-        			.setType(JoinTree.Triple.ElementType.CONSTANT));
+        			.setType(ProtobufJoinTree.Triple.ElementType.CONSTANT));
     	
     	return tripleBuilder;
     }
