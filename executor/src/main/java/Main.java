@@ -72,7 +72,8 @@ public class Main {
 			logger.info("Input database set to: " + databaseName);
 		}
 		
-	
+		Executor executor = new Executor(inputFile, outputFile, databaseName);
+		executor.parseTree();
 	}
 
 }
