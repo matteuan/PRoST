@@ -27,18 +27,18 @@ class VP_creator:
         self.properties = {}
         
         # from now on, use the proper DB
+        sqlContext.sql("CREATE DATABASE IF NOT EXISTS " + self.outputDB)
         sqlContext.sql("USE " + self.outputDB)
 
     def create_triple_table(self):
         triple_table = self.sqlContext.sql(
-            "CREATE EXTERNAL TABLE tripletable (s STRING, p STRING, o STRING) ROW FORMAT DELIMITED" \
+            "CREATE EXTERNAL TABLE IF NOT EXISTS tripletable (s STRING, p STRING, o STRING) ROW FORMAT DELIMITED" \
             + " FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' LOCATION '"+ self.inputFile +"'")
-        count_tt = triple_table.count()
-        print "Triple Table created. There are %d triples." % count_tt 
+        print "Triple Table created."
     
     def extract_properties(self):
         # we assume that the number of properties is small
-        for p in self.sqlContext.sql('SELECT DISTINCT * FROM tripletable').collect():
+        for p in self.sqlContext.sql('SELECT DISTINCT p FROM tripletable').collect():
             self.properties[p["p"]] = True
         print "Properties Extracted. There are %(num)d properties" % {"num": len(self.properties)}
 
