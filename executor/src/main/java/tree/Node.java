@@ -1,14 +1,19 @@
 package tree;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.spark.sql.DataFrame;
-import org.apache.spark.sql.hive.HiveContext;
+
+import org.apache.spark.sql.ColumnName;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SQLContext;
+
+import tree.Utils;
 
 public class Node {
-	Triple triple;
-	List<Node> children;
-	List<String> projection;
-	DataFrame sparkNodeData;
+	public Triple triple;
+	public List<Node> children;
+	public List<String> projection;
+	public Dataset<Row> sparkNodeData;
 	
 	
 	/*
@@ -34,38 +39,38 @@ public class Node {
 	
 	
 	/**
-	 * computeNodeData sets the DataFrame to the data referring to this node
+	 * computeNodeData sets the Dataset<Row> to the data referring to this node
 	 */
-	public void computeNodeData(HiveContext sqlContext){
+	public void computeNodeData(SQLContext sqlContext){
 		StringBuilder query = new StringBuilder("SELECT ");
 		
-		// SELECT
+//		if (projection != null && projection.size() > 0){
+//			if(projection.size() == 2){
+//				query.append("s AS " + Utils.removeQuestionMark(projection.get(1))+ ", ");
+//				query.append("o AS " + Utils.removeQuestionMark(projection.get(0)) + " ");
+//			} else {
+//				if (projection.get(0).equals(triple.subject))
+//					query.append("s AS " + Utils.removeQuestionMark(projection.get(1)) + " ");
+//				else {
+//					query.append("o AS " + Utils.removeQuestionMark(projection.get(0)) + " ");
+//				}
+//			}
+//		} else { // if names are not set, select only the variables
 		
-		// if projection names are set, use them
-		if (projection != null && projection.size() > 0){
-			if(projection.size() == 2){
-				query.append("s AS '" + projection.get(0) + "', ");
-				query.append("o AS '" + projection.get(1) + "' ");
-			} else {
-				if (projection.get(0).equals(triple.subject))
-					query.append("s AS '" + projection.get(0) + "' ");
-				else {
-					query.append("o AS '" + projection.get(1) + "' ");
-				}
-			}
-		} else { // if names are not set, select only the variables
-			if (triple.subjectType == ElementType.VARIABLE &&
-					triple.objectType == ElementType.VARIABLE)
-				query.append("s, o ");
-			else if (triple.subjectType == ElementType.VARIABLE)
-				query.append("s ");
-			else if (triple.objectType == ElementType.VARIABLE) 
-				query.append("o ");
-		}
+		// SELECT
+		if (triple.subjectType == ElementType.VARIABLE &&
+				triple.objectType == ElementType.VARIABLE)
+			query.append("s AS " + Utils.removeQuestionMark(triple.subject) + 
+					", o AS " + Utils.removeQuestionMark(triple.object) + " ");
+		else if (triple.subjectType == ElementType.VARIABLE)
+			query.append("s AS " + Utils.removeQuestionMark(triple.subject) );
+		else if (triple.objectType == ElementType.VARIABLE) 
+			query.append("o AS " + Utils.removeQuestionMark(triple.object));
+	
 			
 		// FROM
 		query.append("FROM ");
-		query.append(tree.Utils.toMetastoreName(triple.predicate));
+		query.append("vp_" + tree.Utils.toMetastoreName(triple.predicate));
 		
 		
 		// WHERE
@@ -78,6 +83,29 @@ public class Node {
 			query.append(" o='" + triple.subject +"' ");
 		
 		this.sparkNodeData = sqlContext.sql(query.toString());
+		System.out.println("NODE STRING: \n" + query.toString());
+	}
+	
+	// call computeNodeData recursively on the whole subtree
+	public void computeSubTreeData(SQLContext sqlContext){
+		this.computeNodeData(sqlContext);
+		for(Node child: this.children)
+			child.computeSubTreeData(sqlContext);
+	}
+	
+	// join tables between itself and all the children
+	public Dataset<Row> computeJoinWithChildren(SQLContext sqlContext){
+		if (sparkNodeData == null)
+			this.computeNodeData(sqlContext);
+		Dataset<Row> currentResult = this.sparkNodeData;
+		for (Node child: children){
+			Dataset<Row> childResult = child.computeJoinWithChildren(sqlContext);
+			String joinVariable = tree.Utils.findCommonVariable(this.triple, child.triple);
+			if (joinVariable != null)
+				currentResult = currentResult.join(childResult, new ColumnName(joinVariable));
+			
+		}
+		return currentResult;
 	}
 	
 	@Override

@@ -1,5 +1,9 @@
 package tree;
 
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SQLContext;
+
 
 /**
  * JoinTree is a wrapper around the ProtobufJoinTree class
@@ -18,6 +22,24 @@ public class JoinTree {
 	public JoinTree(ProtobufJoinTree.Node node){
 		this.node = new Node(node);
 	}
+	
+	public void computeSingularNodeData(SQLContext sqlContext){
+		node.computeSubTreeData(sqlContext);		
+	}
+	
+	public Dataset<Row> computeJoins(SQLContext sqlContext){
+		// compute all the joins
+		Dataset<Row> results = node.computeJoinWithChildren(sqlContext);
+		// select only the requested result
+		String [] selectedColumns = new String[node.projection.size()];
+		for (int i = 0; i < selectedColumns.length; i++) 
+			selectedColumns[i]= node.projection.get(i);
+		results.selectExpr(selectedColumns);
+		
+		return results;
+		
+	}
+	
 	
 	// TODO: improve this
 	@Override

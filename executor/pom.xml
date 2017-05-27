@@ -38,19 +38,20 @@
   		<version>3.3.0</version>
   	</dependency>
 	<dependency>
-		<groupId>org.apache.spark</groupId>
-		<artifactId>spark-core_2.10</artifactId>
-		<version>1.6.0-cdh5.11.0</version>
+	    <groupId>org.apache.spark</groupId>
+	    <artifactId>spark-core_2.10</artifactId>
+	    <version>2.0.0</version>
 	</dependency>
 	<dependency>
-		<groupId>org.apache.spark</groupId>
-		<artifactId>spark-sql_2.10</artifactId>
-		<version>1.6.0-cdh5.11.0</version>
+	    <groupId>org.apache.spark</groupId>
+	    <artifactId>spark-sql_2.10</artifactId>
+	    <version>2.0.0</version>
 	</dependency>
 	<dependency>
-		<groupId>org.apache.spark</groupId>
-		<artifactId>spark-hive_2.10</artifactId>
-		<version>1.6.0-cdh5.11.0</version>
+	    <groupId>org.apache.spark</groupId>
+	    <artifactId>spark-hive_2.10</artifactId>
+	    <version>2.0.0</version>
 	</dependency>
+
   </dependencies>
 </project>
