@@ -83,7 +83,6 @@ public class Node {
 			query.append(" o='" + triple.subject +"' ");
 		
 		this.sparkNodeData = sqlContext.sql(query.toString());
-		System.out.println("NODE STRING: \n" + query.toString());
 	}
 	
 	// call computeNodeData recursively on the whole subtree
@@ -102,17 +101,43 @@ public class Node {
 			Dataset<Row> childResult = child.computeJoinWithChildren(sqlContext);
 			String joinVariable = tree.Utils.findCommonVariable(this.triple, child.triple);
 			if (joinVariable != null)
-				currentResult = currentResult.join(childResult, new ColumnName(joinVariable));
+				currentResult = currentResult.join(childResult, joinVariable);
 			
 		}
 		return currentResult;
 	}
 	
+	// reduce every father data by computing semi-joins with children
+	public void computeUpwardSemiJoin(SQLContext sqlContext){
+		for(Node child: children){
+			child.computeUpwardSemiJoin(sqlContext);
+		}
+		for(Node child: children){
+			String commonVariable = Utils.findCommonVariable(triple, child.triple);
+			this.sparkNodeData = this.sparkNodeData.join(child.sparkNodeData, 
+					this.sparkNodeData.col(commonVariable).equalTo(child.sparkNodeData.col(commonVariable)), "left_semi");
+			this.sparkNodeData.join(child.sparkNodeData, 
+					this.sparkNodeData.col(commonVariable).equalTo(child.sparkNodeData.col(commonVariable)), "left_semi").explain();
+		}
+	}
+	
+	// reduce every child data by computing semi-joins with his father
+	public void computeDownwardSemiJoin(SQLContext sqlContext){
+		for(Node child: children){
+			String commonVariable = Utils.findCommonVariable(triple, child.triple);
+			child.sparkNodeData = child.sparkNodeData.join(this.sparkNodeData, 
+					this.sparkNodeData.col(commonVariable).equalTo(child.sparkNodeData.col(commonVariable)), "left_semi");
+		}
+		for(Node child: children){
+			child.computeDownwardSemiJoin(sqlContext);
+		}
+	}
+	
 	@Override
 	public String toString(){
-		StringBuilder str = new StringBuilder("[Triple:\n" + triple.toString() + "\n Children:\n");
+		StringBuilder str = new StringBuilder("[Triple: " + triple.toString() + " Children: ");
 		for (Node child: children){
-			str.append(child.toString());
+			str.append(child.toString() + "\t" );
 		}
 		str.append("]");
 		return str.toString();

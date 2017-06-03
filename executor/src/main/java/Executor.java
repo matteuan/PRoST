@@ -82,17 +82,33 @@ public class Executor {
 		convertedTree.computeSingularNodeData(sqlContext);
 		logger.info("COMPUTED singular nodes data");
 		
-		// compute the full joins
+		// compute upward semijoins
 		long startTime = System.currentTimeMillis();
+		convertedTree.computeUpwardSemijoins(sqlContext);
+		logger.info("COMPUTED upward semijoins");
+		long executionTime = System.currentTimeMillis() - startTime;
+		logger.info("Execution upward SEMI-JOINS: " + String.valueOf(executionTime));
+		
+		
+		// compute downward semijoins
+		startTime = System.currentTimeMillis();
+		convertedTree.computeDownwardSemijoins(sqlContext);
+		logger.info("COMPUTED downward semijoins");
+		executionTime = System.currentTimeMillis() - startTime;
+		logger.info("Execution downward SEMI-JOINS: " + String.valueOf(executionTime));
+
+		// compute the full joins
+		startTime = System.currentTimeMillis();
 		Dataset<Row> results = convertedTree.computeJoins(sqlContext);
 		logger.info("Joins Computed succesfully");
 		
 		// save results
+		sqlContext.sql("CREATE DATABASE IF NOT EXISTS "+ outputDB);
 		String resultsTable = outputDB + "."  + "GYMresults" + String.valueOf(startTime);
 		results.write().mode("overwrite").saveAsTable(resultsTable);
 		logger.info("Results saved into: " + resultsTable);
-		long executionTime = System.currentTimeMillis() - startTime;
-		logger.info("Execution time: " + String.valueOf(executionTime));
+		executionTime = System.currentTimeMillis() - startTime;
+		logger.info("Execution time JOINS: " + String.valueOf(executionTime));
 		
 		
 	}

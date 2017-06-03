@@ -1,5 +1,6 @@
 package tree;
 
+import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
@@ -31,13 +32,21 @@ public class JoinTree {
 		// compute all the joins
 		Dataset<Row> results = node.computeJoinWithChildren(sqlContext);
 		// select only the requested result
-		String [] selectedColumns = new String[node.projection.size()];
-		for (int i = 0; i < selectedColumns.length; i++) 
-			selectedColumns[i]= node.projection.get(i);
-		results.selectExpr(selectedColumns);
+		Column [] selectedColumns = new Column[node.projection.size()];
+		for (int i = 0; i < selectedColumns.length; i++) {
+			selectedColumns[i]= new Column(node.projection.get(i));
+		}
+			
+		return results.select(selectedColumns).distinct();
 		
-		return results;
-		
+	}
+	
+	public void computeUpwardSemijoins(SQLContext sqlContext){
+		node.computeUpwardSemiJoin(sqlContext);
+	}
+	
+	public void computeDownwardSemijoins(SQLContext sqlContext){
+		node.computeDownwardSemiJoin(sqlContext);
 	}
 	
 	
@@ -47,7 +56,7 @@ public class JoinTree {
 		StringBuilder str = new StringBuilder("JoinTree \n");
 		str.append(node.toString());
 		for (Node child: node.children){
-			str.append("\t" + child.toString());
+			str.append("\n" + child.toString());
 		}
 		
 		return str.toString();
