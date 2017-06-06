@@ -3,6 +3,7 @@ from pyspark import SparkContext
 from pyspark.sql import HiveContext
 from pyspark.sql import DataFrameWriter
 import pyspark.sql.functions as f
+import Stats_pb2
 
 
 """
@@ -12,19 +13,40 @@ accepted as table names in the hive metastore.
 def valid_string(s):
     return re.sub(r"[^\w]", "_", s)
 
-#TODO: errors handling
+
+class Stats:
+    """
+    Stats collects statistics during the loading and save them separately in a file. 
+    """
+
+    def __init__(self):
+        self.graph = Stats_pb2.Graph()
+
+    def addTableStat(self, property, df):
+        tableStats = self.graph.tables.add()
+        tableStats.name = property
+        tableStats.size = df.count()
+        tableStats.distinctSubjects = df.select("s").distinct().count()
+    
+    def getSerializedStats(self):
+        return self.graph.SerializeToString()
+
 class VP_creator:
     """ 
     VP_creator creates for an input RDF dataset
     the corresponding Triple Table, Vertical Partitioning tables (VP)
     """
 
-    def __init__(self, sc, sqlContext, inputFile, outputDB):
+    def __init__(self, sc, sqlContext, inputFile, outputDB, statsFile):
         self.sc = sc
         self.sqlContext = sqlContext
         self.inputFile = inputFile
         self.outputDB = outputDB
         self.properties = {}
+        self.sc.setLogLevel("WARN")
+        self.statsFile = statsFile
+        self.statsEnabled = statsFile != ""
+        self.stats = Stats()
         
         # from now on, use the proper DB
         sqlContext.sql("CREATE DATABASE IF NOT EXISTS " + self.outputDB)
@@ -53,7 +75,19 @@ class VP_creator:
             df_writer = DataFrameWriter(prop_df)
             df_writer.saveAsTable("VP_" + valid_string(p))
             sys.stdout.write("\rTables created: %d / %d " % (i, total_properties))
-        print "Tables created: %d / %d "  % (i, total_properties)
+        
+        # if statistics are enabled, compute them
+        if self.statsEnabled:
+            i = 0
+            stat = Stats()
+            for p in self.properties:
+                i += 1
+                tableDF = self.sqlContext.sql("SELECT * FROM VP_" + valid_string(p))
+                stat.addTableStat(p, tableDF)
+                sys.stdout.write("\rStatistics created: %d / %d " % (i, total_properties))
+            with open(self.statsFile, "w") as f:
+                f.write(stat.getSerializedStats())
+        print "Statistics created: %d / %d "  % (i, total_properties)
 
     def run_creator(self):
         self.create_triple_table()
@@ -62,14 +96,16 @@ class VP_creator:
 
 def main():
     parser = argparse.ArgumentParser(description='Load a RDF into the Hive Mestastore using Vertical Partitioning.')
-    parser.add_argument('input', metavar='[input file]', help='The HDFS path of the input RDF file.')
-    parser.add_argument('output', metavar='[output database]', help='The name of the database where to load the data. ')
+    parser.add_argument('input', metavar='input path', help='The HDFS path of the input RDF file')
+    parser.add_argument('output', metavar='output database', help='The name of the database where to load the data. ')
+    parser.add_argument('-s','-stats', metavar='[output stats file]', help='Statistics are computed and saved in the file.', default='')
+    
     args = parser.parse_args()
-
+    
     sc = SparkContext(appName="GYM_loader")
     sqlContext = HiveContext(sc)
    
-    creator = VP_creator(sc, sqlContext, args.input, args.output)
+    creator = VP_creator(sc, sqlContext, args.input, args.output, args.stats)
     creator.run_creator()
 
 if __name__ == "__main__":
