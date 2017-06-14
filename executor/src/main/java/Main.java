@@ -1,5 +1,7 @@
 
 
+import java.io.File;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -75,10 +77,20 @@ public class Main {
 			logger.info("Input database set to: " + databaseName);
 		}
 		
+		File file = new File(inputFile);
 		
-		Executor executor = new Executor(inputFile, outputDB, databaseName);
-		executor.parseTree();
-		executor.execute();
+		if(file.isFile()){
+			Executor executor = new Executor(inputFile, outputDB, databaseName);
+			executor.parseTree();
+			executor.execute();
+		} else if(file.isDirectory()){
+			// if the path is a directory execute every files inside
+			for(String filename : file.list()){
+				Executor executor = new Executor(filename, outputDB, databaseName);
+				executor.parseTree();
+				executor.execute();
+			}
+		}
 	}
 
 }
