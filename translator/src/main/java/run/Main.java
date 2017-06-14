@@ -19,6 +19,7 @@ import org.apache.log4j.Logger;
  * -s, --stats <path> Folder with optional statistics.
  * -i, --input <file> SPARQL query file to translate 
  * -o, --output <file> Specify the filename with the resulting tree.
+ * -w, --width <number> the maximum Tree width
  * 
  * @author Matteo Cossu
  */
@@ -27,6 +28,7 @@ public class Main {
 	private static String outputFile;
 	private static String statsPath;
 	private static final Logger logger = Logger.getLogger(Main.class);
+	private static int treeWidth = -1;
 	
 	public static void main(String[] args) {
 		
@@ -44,6 +46,8 @@ public class Main {
 		options.addOption(statOpt);
 		Option helpOpt = new Option("h", "help", true, "Print this help.");
 		options.addOption(helpOpt);
+		Option widthOpt = new Option("w", "width", true, "The maximum Tree width");
+		options.addOption(widthOpt);
 		
 		HelpFormatter formatter = new HelpFormatter();
 		CommandLine cmd = null;
@@ -71,11 +75,15 @@ public class Main {
 			statsPath = cmd.getOptionValue("stats");
 			logger.info("VP statistics are being used.");
 		}
+		if(cmd.hasOption("width")){
+			treeWidth = Integer.valueOf(cmd.getOptionValue("width"));
+			logger.info("Maximum tree width is set to " + String.valueOf(treeWidth));
+		}
 		
 		/*
 		 * Translation Phase
 		 */
-		Translator translator = new Translator(inputFile, outputFile, statsPath);
+		Translator translator = new Translator(inputFile, outputFile, statsPath, treeWidth);
 		translator.translateQuery();
 	}
 

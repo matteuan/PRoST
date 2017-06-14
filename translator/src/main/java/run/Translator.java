@@ -30,14 +30,17 @@ public class Translator {
     String inputFile;
     String outputFile;
     String statsPath;
+    int treeWidth;
+    PrefixMapping prefixes;
     List<Var> variables;
     List<Triple> triples;
     private static final Logger logger = Logger.getLogger(Main.class);
     
-    public Translator(String input, String output, String statsPath) {
+    public Translator(String input, String output, String statsPath, int treeWidth) {
     	this.inputFile = input;
     	this.outputFile = output != null && output.length() > 0 ? output : input + ".out";
     	this.statsPath = statsPath;
+    	this.treeWidth = treeWidth;
     }
     
     public void translateQuery(){
@@ -45,7 +48,7 @@ public class Translator {
     	// parse the query and extract prefixes
         Query query = QueryFactory.read("file:"+inputFile);
         // TODO: consider prefixes
-        PrefixMapping prefixes = query.getPrefixMapping();
+        prefixes = query.getPrefixMapping();
         
         logger.info("*** SPARQL QUERY ***\n" + query +"\n********************"  );
         
@@ -112,9 +115,15 @@ public class Translator {
     	ArrayDeque<NodeTriplePair> visitableNodes = new ArrayDeque<NodeTriplePair>();
     	while(triplesQueue.size() > 0){
     		
-    		// add every possible children (wide tree)
+    		// add every possible children (wide tree) or limit to a custom width
+    		int limitWidth = 0;
     		Triple newTriple = findRelateTriple(currentTriple, triplesQueue);
     		while(newTriple != null){
+    			
+    			// if a width limit exists and is reached
+    			if(treeWidth > 0 && limitWidth == treeWidth)
+    				break;
+    			
     			// create the new child
     			ProtobufJoinTree.Node.Builder newChild = Node.newBuilder();
     			newChild.setTriple(buildTriple(newTriple));
@@ -130,6 +139,8 @@ public class Translator {
     			// remove consumed triple and look for another one
     			triplesQueue.remove(newTriple);
     			newTriple = findRelateTriple(currentTriple, triplesQueue);
+    			
+    			limitWidth++;
     		}
     		
     		// next Node is one of the children
@@ -152,27 +163,27 @@ public class Translator {
     	// extract and set the subject
     	if(triple.getSubject().isVariable())
     		tripleBuilder.setSubject(tripleBuilder.getSubjectBuilder()
-        			.setName(triple.getSubject().getName())
+        			.setName(triple.getSubject().toString(prefixes))
         			.setType(ProtobufJoinTree.Triple.ElementType.VARIABLE));
     	else
     		tripleBuilder.setSubject(tripleBuilder.getSubjectBuilder()
-        			.setName(triple.getSubject().toString())
+        			.setName(triple.getSubject().toString(prefixes))
         			.setType(ProtobufJoinTree.Triple.ElementType.CONSTANT));
     		
     	
     	// extract and set the predicate
     	tripleBuilder.setPredicate(tripleBuilder.getPredicateBuilder()
-    			.setName(triple.getPredicate().toString())
+    			.setName(triple.getPredicate().toString(prefixes))
     			.setType(ProtobufJoinTree.Triple.ElementType.CONSTANT));
     	
     	// extract and set the object
     	if(triple.getObject().isVariable())
     		tripleBuilder.setObject(tripleBuilder.getObjectBuilder()
-        			.setName(triple.getObject().getName())
+        			.setName(triple.getObject().toString(prefixes))
         			.setType(ProtobufJoinTree.Triple.ElementType.VARIABLE));
     	else
     		tripleBuilder.setObject(tripleBuilder.getObjectBuilder()
-        			.setName(triple.getObject().toString())
+        			.setName(triple.getObject().toString(prefixes))
         			.setType(ProtobufJoinTree.Triple.ElementType.CONSTANT));
     	
     	return tripleBuilder;
