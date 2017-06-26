@@ -1,3 +1,9 @@
+/* 
+Protobuf definition of the JoinTree.
+The Node type is used to represent a tree where the nodes contain RDF triples.
+@author: Matteo Cossu
+*/
+
 message Triple {
 	enum ElementType {
 		VARIABLE = 0;
@@ -10,6 +16,7 @@ message Triple {
 	required Element subject = 1;
 	required Element predicate = 2;
 	required Element object = 3;
+	optional Table stats = 4;
 }
 
 message Node {

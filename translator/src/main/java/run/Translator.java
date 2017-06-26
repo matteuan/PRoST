@@ -29,7 +29,9 @@ public class Translator {
 
     String inputFile;
     String outputFile;
-    String statsPath;
+    String statsFile;
+    Stats stats;
+    boolean statsActive = false;
     int treeWidth;
     PrefixMapping prefixes;
     List<Var> variables;
@@ -39,7 +41,11 @@ public class Translator {
     public Translator(String input, String output, String statsPath, int treeWidth) {
     	this.inputFile = input;
     	this.outputFile = output != null && output.length() > 0 ? output : input + ".out";
-    	this.statsPath = statsPath;
+    	this.statsFile = statsPath;
+    	if(statsFile.length() > 0){
+    		stats = new Stats(statsFile);
+    		statsActive = true;
+    	}
     	this.treeWidth = treeWidth;
     }
     
@@ -128,6 +134,7 @@ public class Translator {
     			ProtobufJoinTree.Node.Builder newChild = Node.newBuilder();
     			newChild.setTriple(buildTriple(newTriple));
     			
+    			
     			// append it to the current node and to the queue
     			currentNode.addChildren(newChild);
     			// get the proper builder
@@ -186,6 +193,10 @@ public class Translator {
         			.setName(triple.getObject().toString(prefixes))
         			.setType(ProtobufJoinTree.Triple.ElementType.CONSTANT));
     	
+		// set optional statistics
+		if(statsActive) tripleBuilder.setStats(stats.getTableStats(
+				triple.getPredicate().toString(prefixes)));
+		
     	return tripleBuilder;
     }
     

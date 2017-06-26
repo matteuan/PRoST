@@ -16,7 +16,7 @@ import org.apache.log4j.Logger;
  * 
  * Options: 
  * -h, --help prints the usage help message.
- * -s, --stats <path> Folder with optional statistics.
+ * -s, --stats <file> File with optional statistics.
  * -i, --input <file> SPARQL query file to translate 
  * -o, --output <file> Specify the filename with the resulting tree.
  * -w, --width <number> the maximum Tree width
@@ -26,7 +26,7 @@ import org.apache.log4j.Logger;
 public class Main {
 	private static String inputFile;
 	private static String outputFile;
-	private static String statsPath;
+	private static String statsFileName = "";
 	private static final Logger logger = Logger.getLogger(Main.class);
 	private static int treeWidth = -1;
 	
@@ -42,7 +42,7 @@ public class Main {
 		options.addOption(inputOpt);
 		Option outputOpt = new Option("o", "output", true, "Custom output filename");
 		options.addOption(outputOpt);
-		Option statOpt = new Option("s", "stats", true, "Folder with optional statistics");
+		Option statOpt = new Option("s", "stats", true, "File with optional statistics");
 		options.addOption(statOpt);
 		Option helpOpt = new Option("h", "help", true, "Print this help.");
 		options.addOption(helpOpt);
@@ -72,7 +72,7 @@ public class Main {
 			logger.info("Output file set to:" + outputFile);
 		}
 		if(cmd.hasOption("stats")){
-			statsPath = cmd.getOptionValue("stats");
+			statsFileName = cmd.getOptionValue("stats");
 			logger.info("VP statistics are being used.");
 		}
 		if(cmd.hasOption("width")){
@@ -83,7 +83,7 @@ public class Main {
 		/*
 		 * Translation Phase
 		 */
-		Translator translator = new Translator(inputFile, outputFile, statsPath, treeWidth);
+		Translator translator = new Translator(inputFile, outputFile, statsFileName, treeWidth);
 		translator.translateQuery();
 	}
 
