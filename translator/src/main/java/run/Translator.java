@@ -8,7 +8,9 @@ import java.util.List;
 
 import org.apache.log4j.Logger;
 
-import run.ProtobufJoinTree.Node;
+import tree.ProtobufJoinTree;
+import tree.Stats;
+import tree.ProtobufJoinTree.Node;
 
 import com.hp.hpl.jena.graph.Triple;
 import com.hp.hpl.jena.query.Query;

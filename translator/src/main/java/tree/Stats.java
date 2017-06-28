@@ -1,4 +1,4 @@
-package run;
+package tree;
 
 
 import java.io.FileInputStream;
@@ -8,7 +8,8 @@ import java.util.HashMap;
 
 import org.apache.log4j.Logger;
 
-import run.ProtobufStats.Table;
+import run.Main;
+import tree.ProtobufStats.Table;
 
 
 /**
