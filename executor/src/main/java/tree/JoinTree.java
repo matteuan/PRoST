@@ -36,7 +36,7 @@ public class JoinTree {
 		for (int i = 0; i < selectedColumns.length; i++) {
 			selectedColumns[i]= new Column(node.projection.get(i));
 		}
-			
+		results.select(selectedColumns).distinct().explain();
 		return results.select(selectedColumns).distinct();
 		
 	}

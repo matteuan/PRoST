@@ -26,6 +26,13 @@ public class Executor {
 	JoinTree convertedTree;
 	SparkSession spark;
 	SQLContext sqlContext;
+	boolean onlyJoins = false;
+
+	// skip the semi joins reductions or not
+	public void setOnlyJoins(boolean onlyJoins) {
+		this.onlyJoins = onlyJoins;
+	}
+
 
 	private static final Logger logger = Logger.getLogger(Main.class);
 	
@@ -77,26 +84,36 @@ public class Executor {
 		// use the selected Database
 		sqlContext.sql("USE "+ this.databaseName);
 		logger.info("USE "+ this.databaseName);
-				
+		
+		
+		long totalStartTime = System.currentTimeMillis();
+		
 		// compute the singular nodes data
 		convertedTree.computeSingularNodeData(sqlContext);
 		logger.info("COMPUTED singular nodes data");
 		
-//		// compute upward semijoins
-		long startTime = System.currentTimeMillis();
-//		convertedTree.computeUpwardSemijoins(sqlContext);
-//		logger.info("COMPUTED upward semijoins");
-		long executionTime = System.currentTimeMillis() - startTime;
-//		logger.info("Execution upward SEMI-JOINS: " + String.valueOf(executionTime));
-//		
-//		
-//		// compute downward semijoins
-//		startTime = System.currentTimeMillis();
-//		convertedTree.computeDownwardSemijoins(sqlContext);
-//		logger.info("COMPUTED downward semijoins");
-//		executionTime = System.currentTimeMillis() - startTime;
-//		logger.info("Execution downward SEMI-JOINS: " + String.valueOf(executionTime));
-
+		
+		long startTime;
+		long executionTime;
+		if (!onlyJoins) {
+			
+			// compute upward semijoins
+			startTime = System.currentTimeMillis();
+			convertedTree.computeUpwardSemijoins(sqlContext);
+			logger.info("COMPUTED upward semijoins");
+			executionTime = System.currentTimeMillis() - startTime;
+			logger.info("Execution upward SEMI-JOINS: "
+					+ String.valueOf(executionTime));
+			
+			// compute downward semijoins
+			startTime = System.currentTimeMillis();
+			convertedTree.computeDownwardSemijoins(sqlContext);
+			logger.info("COMPUTED downward semijoins");
+			executionTime = System.currentTimeMillis() - startTime;
+			logger.info("Execution downward SEMI-JOINS: "
+					+ String.valueOf(executionTime));
+		}
+		
 		// compute the full joins
 		startTime = System.currentTimeMillis();
 		Dataset<Row> results = convertedTree.computeJoins(sqlContext);
@@ -110,7 +127,8 @@ public class Executor {
 		executionTime = System.currentTimeMillis() - startTime;
 		logger.info("Execution time JOINS: " + String.valueOf(executionTime));
 		
-		
+		long totalExecutionTime = System.currentTimeMillis() - totalStartTime;
+		logger.info("Total execution time: " + String.valueOf(totalExecutionTime));
 	}
 
 }

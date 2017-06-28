@@ -1,6 +1,7 @@
 
 
 import java.io.File;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -24,6 +25,7 @@ import org.apache.spark.sql.hive.HiveContext;
  * -d, --DB <database> Database containing the VP tables
  * -i, --input <file> JoinTree input file, representing the query
  * -o, --output <HDFSfile> Optional HDFS output where to save the results
+ * -j, --joins Flag to execute only joins, skipping the semi-join reductions
  * 
  * @author Matteo Cossu
  */
@@ -32,6 +34,7 @@ public class Main {
 	private static String outputDB;
 	private static String databaseName;
 	private static final Logger logger = Logger.getLogger(Main.class);
+	private static boolean onlyJoins = false;
 	public static void main(String[] args) {
 		
 		/*
@@ -47,8 +50,10 @@ public class Main {
 		Option databaseOpt = new Option("d", "DB", true, "Database containing the VP tables.");
 		databaseOpt.setRequired(true);
 		options.addOption(databaseOpt);
-		Option helpOpt = new Option("h", "help", true, "Print this help.");
+		Option helpOpt = new Option("h", "help", false, "Print this help.");
 		options.addOption(helpOpt);
+		Option joinsOpt = new Option("j", "joins", false, "Execute only joins, skipping the semi-join reductions.");
+		options.addOption(joinsOpt);
 		
 		HelpFormatter formatter = new HelpFormatter();
 		CommandLine cmd = null;
@@ -76,20 +81,36 @@ public class Main {
 			databaseName = cmd.getOptionValue("DB");
 			logger.info("Input database set to: " + databaseName);
 		}
+		if(cmd.hasOption("joins")){
+			onlyJoins = true;
+			logger.info("Executing only joins.");
+		}
 		
 		File file = new File(inputFile);
 		
 		if(file.isFile()){
 			Executor executor = new Executor(inputFile, outputDB, databaseName);
+			executor.setOnlyJoins(onlyJoins);
 			executor.parseTree();
 			executor.execute();
 		} else if(file.isDirectory()){
 			// if the path is a directory execute every files inside
-			for(String filename : file.list()){
-				Executor executor = new Executor(filename, outputDB, databaseName);
+			
+			for(String fname : file.list()){
+				logger.info("Starting: " + fname);
+				Executor executor = new Executor(file + "/" + fname, outputDB, databaseName);
+				executor.setOnlyJoins(onlyJoins);
 				executor.parseTree();
 				executor.execute();
+				try {
+					TimeUnit.SECONDS.sleep(3);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			}
+		} else {
+			logger.error("The input file is not set correctly or contains errors");
 		}
 	}
 

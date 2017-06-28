@@ -6,13 +6,19 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
 
+import tree.ProtobufStats.Table;
 import tree.Utils;
 
 public class Node {
 	public Triple triple;
 	public List<Node> children;
 	public List<String> projection;
+	
+	// the spark dataset containing the data relative to this node
 	public Dataset<Row> sparkNodeData;
+	
+	// determine if is it worth to compute semi-joins for this node
+	public boolean isReducible = false;
 	
 	
 	/*
@@ -31,6 +37,11 @@ public class Node {
 			 children.add(subtreeChild.getNode());
 		}
 		
+		// decide if it is worth to use semi-joins reductions
+		if (node.getTriple().hasStats()) {
+			Table stats = node.getTriple().getStats();
+			this.isReducible = stats.getSize() > stats.getDistinctSubjects();
+		}
 		// set the projections (if present)
 		this.projection = node.getProjectionList();
 		
@@ -68,7 +79,7 @@ public class Node {
 	
 			
 		// FROM
-		query.append("FROM ");
+		query.append(" FROM ");
 		query.append("vp_" + tree.Utils.toMetastoreName(triple.predicate));
 		
 		
@@ -111,21 +122,33 @@ public class Node {
 		for(Node child: children){
 			child.computeUpwardSemiJoin(sqlContext);
 		}
-		for(Node child: children){
-			String commonVariable = Utils.findCommonVariable(triple, child.triple);
-			this.sparkNodeData = this.sparkNodeData.join(child.sparkNodeData, 
-					this.sparkNodeData.col(commonVariable).equalTo(child.sparkNodeData.col(commonVariable)), "left_semi");
-			this.sparkNodeData.join(child.sparkNodeData, 
-					this.sparkNodeData.col(commonVariable).equalTo(child.sparkNodeData.col(commonVariable)), "left_semi").explain();
+		// only if is reducible, compute semi-joins reductions
+		if (isReducible) {
+			for (Node child : children) {
+				String commonVariable = Utils.findCommonVariable(triple,
+						child.triple);
+				this.sparkNodeData = this.sparkNodeData.join(
+						child.sparkNodeData,
+						this.sparkNodeData.col(commonVariable).equalTo(
+								child.sparkNodeData.col(commonVariable)),
+						"left_semi");
+			}
 		}
 	}
 	
 	// reduce every child data by computing semi-joins with his father
 	public void computeDownwardSemiJoin(SQLContext sqlContext){
-		for(Node child: children){
-			String commonVariable = Utils.findCommonVariable(triple, child.triple);
-			child.sparkNodeData = child.sparkNodeData.join(this.sparkNodeData, 
-					this.sparkNodeData.col(commonVariable).equalTo(child.sparkNodeData.col(commonVariable)), "left_semi");
+		// only if is reducible, compute semi-joins reductions
+		if (isReducible) {
+			for (Node child : children) {
+				String commonVariable = Utils.findCommonVariable(triple,
+						child.triple);
+				child.sparkNodeData = child.sparkNodeData.join(
+						this.sparkNodeData,
+						this.sparkNodeData.col(commonVariable).equalTo(
+								child.sparkNodeData.col(commonVariable)),
+						"left_semi");
+			}
 		}
 		for(Node child: children){
 			child.computeDownwardSemiJoin(sqlContext);
