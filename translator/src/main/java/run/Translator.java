@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.Comparator;
 import java.util.List;
 
 import org.apache.log4j.Logger;
@@ -104,6 +105,10 @@ public class Translator {
      * buildTree constructs the JoinTree, ready to be serialized.
      */
     public Node buildTree() {
+    	
+    	// sort the triples before adding them
+    	//this.sortTriples();    	
+    	
     	ArrayDeque<Triple> triplesQueue = new ArrayDeque<Triple> (triples);
     	
     	// create a builder (protobuf)
@@ -123,8 +128,16 @@ public class Translator {
     	ArrayDeque<NodeTriplePair> visitableNodes = new ArrayDeque<NodeTriplePair>();
     	while(triplesQueue.size() > 0){
     		
-    		// add every possible children (wide tree) or limit to a custom width
+    		
     		int limitWidth = 0;
+    		if(treeWidth == -1){
+    			String predicate = triples.get(0).getPredicate().toString(prefixes);
+    	    	float proportion = stats.getTableSize(predicate) / 
+    	    			stats.getTableDistinctSubjects(predicate);
+    	    	treeWidth = proportion > 1 ? 3 : 2;
+    		}
+    		
+    		// add every possible children (wide tree) or limit to a custom width
     		Triple newTriple = findRelateTriple(currentTriple, triplesQueue);
     		while(newTriple != null){
     			
@@ -221,6 +234,46 @@ public class Translator {
     	}
     	
     	return null;
+    }
+    
+    /*
+     * Simple triples reordering based on statistics.
+     * Thanks to this method the building of the tree will follow a better order.
+     */
+    private void sortTriples(){
+    	if(triples.size() == 0 || !statsActive) return;
+    	
+    	logger.info("Triples being sorted");
+    	
+    	// find the best root
+    	int indexBestRoot = 0;
+    	String predicate = triples.get(0).getPredicate().toString(prefixes);
+    	int bestSize = stats.getTableSize(predicate);
+    	float bestProportion = bestSize / stats.getTableDistinctSubjects(predicate);
+    	for(int i = 1; i < triples.size(); i++){
+    		predicate = triples.get(i).getPredicate().toString(prefixes);
+        	float proportion = stats.getTableSize(predicate) / 
+        			stats.getTableDistinctSubjects(predicate);
+        	
+        	// update best if the proportion is better
+        	if (proportion > bestProportion){
+        		indexBestRoot = i;
+        		bestProportion = proportion;
+        		bestSize = stats.getTableSize(predicate); 
+        	} // or if the table size is bigger
+        	else if (proportion == bestProportion && stats.getTableSize(predicate) > bestSize) {
+        		indexBestRoot = i;
+        		bestSize = stats.getTableSize(predicate);        		
+        	}
+    	}
+
+    	// move the best triple to the front
+    	if(indexBestRoot > 0){
+    		Triple tripleToMove = triples.get(indexBestRoot);
+    		triples.remove(indexBestRoot);
+    		triples.add(0, tripleToMove);
+    	}
+    	  	
     }
     
 }
