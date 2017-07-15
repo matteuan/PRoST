@@ -105,7 +105,6 @@ public class Translator {
      * buildTree constructs the JoinTree, ready to be serialized.
      */
     public Node buildTree() {
-    	
     	// sort the triples before adding them
     	//this.sortTriples();    	
     	
@@ -128,27 +127,31 @@ public class Translator {
     	ArrayDeque<NodeTriplePair> visitableNodes = new ArrayDeque<NodeTriplePair>();
     	while(triplesQueue.size() > 0){
     		
-    		
     		int limitWidth = 0;
+    		String predicate = currentTriple.getPredicate().toString(prefixes);
+    		// if a limit not set, a heuristic based on the predicate decides the width 
     		if(treeWidth == -1){
-    			String predicate = triples.get(0).getPredicate().toString(prefixes);
-    	    	float proportion = stats.getTableSize(predicate) / 
-    	    			stats.getTableDistinctSubjects(predicate);
-    	    	treeWidth = proportion > 1 ? 3 : 2;
+    	    	treeWidth = heuristicWidth(predicate); 
     		}
     		
-    		// add every possible children (wide tree) or limit to a custom width
+    		
     		Triple newTriple = findRelateTriple(currentTriple, triplesQueue);
-    		while(newTriple != null){
-    			
-    			// if a width limit exists and is reached
-    			if(treeWidth > 0 && limitWidth == treeWidth)
-    				break;
+    		
+    		// there are triples that are impossible to join with the current tree
+    		if (newTriple == null) {
+    			// set the limit to infinite and execute again
+    			treeWidth = Integer.MAX_VALUE;
+    			return buildTree();
+    		}
+    		
+    		
+    		// add every possible children (wide tree) or limit to a custom width
+    		// stop if a width limit exists and is reached
+    		while(newTriple != null && !(treeWidth > 0 && limitWidth == treeWidth)){
     			
     			// create the new child
     			ProtobufJoinTree.Node.Builder newChild = Node.newBuilder();
     			newChild.setTriple(buildTriple(newTriple));
-    			
     			
     			// append it to the current node and to the queue
     			currentNode.addChildren(newChild);
@@ -235,6 +238,20 @@ public class Translator {
     	
     	return null;
     }
+    
+    /*
+     * heuristicWidth decides a width based on the proportion
+     * between the number of elements in a table and the unique subjects.
+     */
+    private int heuristicWidth(String predicate){
+    	int tableSize = stats.getTableSize(predicate);
+    	int numberUniqueSubjects = stats.getTableDistinctSubjects(predicate);
+    	float proportion = tableSize / numberUniqueSubjects;
+    	if(proportion > 1)
+    		return 3;
+    	return 2;
+    }
+    
     
     /*
      * Simple triples reordering based on statistics.
