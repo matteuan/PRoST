@@ -1,6 +1,8 @@
 
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.cli.CommandLine;
@@ -89,29 +91,33 @@ public class Main {
 		File file = new File(inputFile);
 		
 		if(file.isFile()){
-			Executor executor = new Executor(inputFile, outputDB, databaseName);
-			executor.setOnlyJoins(onlyJoins);
-			executor.parseTree();
-			executor.execute();
+			executeFile(inputFile);
 		} else if(file.isDirectory()){
 			// if the path is a directory execute every files inside
-			
 			for(String fname : file.list()){
 				logger.info("Starting: " + fname);
-				Executor executor = new Executor(file + "/" + fname, outputDB, databaseName);
-				executor.setOnlyJoins(onlyJoins);
-				executor.parseTree();
-				executor.execute();
-				try {
-					TimeUnit.SECONDS.sleep(3);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+				executeFile(file + "/" + fname);
 			}
 		} else {
 			logger.error("The input file is not set correctly or contains errors");
 		}
+	}
+	
+	private static void executeFile(String file) {
+		Executor executor = new Executor(file, outputDB, databaseName);
+		executor.setOnlyJoins(onlyJoins);
+		
+		try {
+			executor.parseTree();
+			executor.execute();
+		} catch (FileNotFoundException e) {
+			logger.error("File not found: " + file);
+		} catch (IOException e) {
+			logger.error("IO Error reading the file: " + file);
+		} catch (java.text.ParseException e) {
+			logger.error("The file was not correctly parsed: " + file);
+		}
+		
 	}
 
 }

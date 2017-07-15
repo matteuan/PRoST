@@ -2,6 +2,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.ResultSet;
+import java.text.ParseException;
 
 import org.apache.log4j.Logger;
 import org.apache.spark.sql.Dataset;
@@ -43,7 +44,6 @@ public class Executor {
 		
 
 		// initialize the Spark environment 
-
 		spark = SparkSession
 				  .builder()
 				  .appName("SparkVP-Executor")
@@ -55,20 +55,10 @@ public class Executor {
 	 * parseTree reads the input file and it transforms the JoinTree
 	 * in a Spark execution plan
 	 */
-	public void parseTree() {
-		ProtobufJoinTree.Node root = null;
-		try {
-			root = ProtobufJoinTree.Node.parseFrom(
+	public void parseTree() throws IOException, FileNotFoundException, ParseException{
+		ProtobufJoinTree.Node root = ProtobufJoinTree.Node.parseFrom(
 					new FileInputStream(inputFile));
-		} catch (FileNotFoundException e) {
-			logger.error("Input File Not Found");
-			return;
-		} catch (IOException e) {
-			e.printStackTrace();
-			return;
-		}
 		convertedTree = new JoinTree(root);
-		logger.info("JoinTree correctly parsed");
 	}
 	
 	
@@ -76,11 +66,6 @@ public class Executor {
 	 * execute performs the Spark computation and measure the time required
 	 */
 	public void execute() {
-		if(convertedTree == null){
-			logger.error("The JoinTree was not correctly parsed");
-			return;
-		}
-		
 		// use the selected Database
 		sqlContext.sql("USE "+ this.databaseName);
 		logger.info("USE "+ this.databaseName);

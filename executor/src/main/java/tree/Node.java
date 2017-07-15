@@ -54,19 +54,6 @@ public class Node {
 	public void computeNodeData(SQLContext sqlContext){
 		StringBuilder query = new StringBuilder("SELECT ");
 		
-//		if (projection != null && projection.size() > 0){
-//			if(projection.size() == 2){
-//				query.append("s AS " + Utils.removeQuestionMark(projection.get(1))+ ", ");
-//				query.append("o AS " + Utils.removeQuestionMark(projection.get(0)) + " ");
-//			} else {
-//				if (projection.get(0).equals(triple.subject))
-//					query.append("s AS " + Utils.removeQuestionMark(projection.get(1)) + " ");
-//				else {
-//					query.append("o AS " + Utils.removeQuestionMark(projection.get(0)) + " ");
-//				}
-//			}
-//		} else { // if names are not set, select only the variables
-		
 		// SELECT
 		if (triple.subjectType == ElementType.VARIABLE &&
 				triple.objectType == ElementType.VARIABLE)
@@ -77,11 +64,9 @@ public class Node {
 		else if (triple.objectType == ElementType.VARIABLE) 
 			query.append("o AS " + Utils.removeQuestionMark(triple.object));
 	
-			
 		// FROM
 		query.append(" FROM ");
 		query.append("vp_" + tree.Utils.toMetastoreName(triple.predicate));
-		
 		
 		// WHERE
 		if( triple.objectType == ElementType.CONSTANT || triple.subjectType == ElementType.CONSTANT)
