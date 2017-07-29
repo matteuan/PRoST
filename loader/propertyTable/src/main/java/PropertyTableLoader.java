@@ -1,6 +1,7 @@
 import java.io.FileNotFoundException;
 import java.util.List;
 
+import org.apache.log4j.Logger;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
@@ -48,7 +49,9 @@ public class PropertyTableLoader {
 	protected static final String table_format = "parquet";
 
 	private SparkSession spark;
-
+	private static final Logger logger = Logger.getLogger(Main.class);
+	
+	
 	public PropertyTableLoader(String inputPath, String outputDB) {
 		this.hdfs_input_directory = inputPath;
 		this.output_db_name = outputDB;
@@ -62,6 +65,8 @@ public class PropertyTableLoader {
 
 	
 	public void load() throws FileNotFoundException {
+		
+		useOutputDatabase();
 		
 		buildTripleTable();
 		
@@ -87,6 +92,13 @@ public class PropertyTableLoader {
 	}
 	
 	
+	private void useOutputDatabase() {
+		spark.sql("CREATE DATABASE IF NOT EXISTS " + output_db_name);
+		spark.sql("USE "  + output_db_name);
+		logger.info("Using the database: " + output_db_name);
+	}
+
+
 	/**
 	 * Build a table that contains all rdf triples. If a file with prefixes is
 	 * given, they will be replaced. 
@@ -99,6 +111,7 @@ public class PropertyTableLoader {
 				field_terminator, line_terminator, hdfs_input_directory);
 
 		spark.sql(createTripleTable);
+		logger.info("Created tripletable");
 	}
 
 	public void buildProperties() {
@@ -129,6 +142,7 @@ public class PropertyTableLoader {
 		
 		// write the result
 		cleanedProperties.write().mode(SaveMode.Overwrite).saveAsTable(tablename_properties);
+		logger.info("Created properties table with name: " + tablename_properties);
 	}
 
 	/**
@@ -173,6 +187,8 @@ public class PropertyTableLoader {
 		// write the final one
 		propertyTable.write().mode(SaveMode.Overwrite).format(table_format)
 				.saveAsTable(output_tablename);
+		logger.info("Created property table with name: " + output_tablename);
+
 	}
 
 	/**
@@ -190,6 +206,7 @@ public class PropertyTableLoader {
 	public void dropTables(String... tableNames) {
 		for (String tb : tableNames)
 			spark.sql("DROP TABLE " + tb);
+		logger.info("Removed tables: " + tableNames);
 	}
 
 }

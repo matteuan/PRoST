@@ -74,7 +74,7 @@ public class PropertiesAggregateFunction extends UserDefinedAggregateFunction {
 	// it performs the conversion/casting from the scala array to Java list
 	private List<String> getStringList(Object rawList) {
 		return new ArrayList<String>(scala.collection.JavaConverters
-				.asJavaListConverter((scala.collection.mutable.WrappedArray.ofRef<String>) rawList).asJava());
+				.seqAsJavaListConverter((scala.collection.mutable.WrappedArray.ofRef<String>) rawList).asJava());
 	}
 
 	// for each element inside a group, add the new value to the right property
@@ -89,7 +89,7 @@ public class PropertiesAggregateFunction extends UserDefinedAggregateFunction {
 		String value = po[1];
 
 		HashMap<Object, Object> properties = new HashMap<Object, Object>(
-				scala.collection.JavaConversions.asJavaMap(buffer.getMap(0)));
+				scala.collection.JavaConversions.mapAsJavaMap(buffer.getMap(0)));
 
 		// if the property already exists, append the value at the end of the
 		// list
@@ -106,13 +106,12 @@ public class PropertiesAggregateFunction extends UserDefinedAggregateFunction {
 		buffer.update(0, properties);
 	}
 
-	// Merge two different part of the group (each group could be split by
-	// Spark)
+	// Merge two different part of the group (each group could be split by Spark)
 	public void merge(MutableAggregationBuffer buffer1, Row buffer2) {
 
 		// part1 and part2 contain the two buffers to be merged
-		Map<Object, Object> part1 = scala.collection.JavaConversions.asJavaMap(buffer1.getMap(0));
-		Map<Object, Object> part2 = scala.collection.JavaConversions.asJavaMap(buffer2.getMap(0));
+		Map<Object, Object> part1 = scala.collection.JavaConversions.mapAsJavaMap(buffer1.getMap(0));
+		Map<Object, Object> part2 = scala.collection.JavaConversions.mapAsJavaMap(buffer2.getMap(0));
 		Object[] objectKeys1 = part1.keySet().toArray();
 		String[] sortedKeys1 = Arrays.copyOf(objectKeys1, objectKeys1.length, String[].class);
 		Arrays.sort(sortedKeys1);
@@ -172,7 +171,7 @@ public class PropertiesAggregateFunction extends UserDefinedAggregateFunction {
 
 	// produce the final value for each group, a row containing all values
 	public Object evaluate(Row buffer) {
-		Map<Object, Object> completeRowMap = scala.collection.JavaConversions.asJavaMap(buffer.getMap(0));
+		Map<Object, Object> completeRowMap = scala.collection.JavaConversions.mapAsJavaMap(buffer.getMap(0));
 		ArrayList<List<String>> resultRow = new ArrayList<List<String>>();
 
 		// keep the order of the properties
