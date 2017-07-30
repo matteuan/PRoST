@@ -4,7 +4,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.Comparator;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 import org.apache.log4j.Logger;
@@ -21,7 +23,6 @@ import com.hp.hpl.jena.sparql.algebra.Algebra;
 import com.hp.hpl.jena.sparql.algebra.op.OpBGP;
 import com.hp.hpl.jena.sparql.algebra.op.OpProject;
 import com.hp.hpl.jena.sparql.core.Var;
-
 /**
  * This class parses the SPARQL query,
  * build the Tree and save its serialization in a file.
@@ -39,6 +40,7 @@ public class Translator {
     PrefixMapping prefixes;
     List<Var> variables;
     List<Triple> triples;
+	private boolean usePropertyTable;
     private static final Logger logger = Logger.getLogger(Main.class);
     
     public Translator(String input, String output, String statsPath, int treeWidth) {
@@ -93,11 +95,14 @@ public class Translator {
     private class NodeTriplePair {
         public ProtobufJoinTree.Node.Builder node;
         public Triple triple;
+        public List<tree.ProtobufJoinTree.Triple> tripleGroup;
 
-        public NodeTriplePair(ProtobufJoinTree.Node.Builder node, Triple triple){
+        public NodeTriplePair(ProtobufJoinTree.Node.Builder node, List<ProtobufJoinTree.Triple> tripleGroup){
             this.node = node;
-            this.triple = triple;
+            this.triple = null;
+            this.tripleGroup = tripleGroup;
         }
+
     }
     
     
@@ -108,62 +113,46 @@ public class Translator {
     	// sort the triples before adding them
     	//this.sortTriples();    	
     	
-    	ArrayDeque<Triple> triplesQueue = new ArrayDeque<Triple> (triples);
+    	ArrayDeque<Node.Builder> nodesQueue = getNodesQueue();
     	
-    	// create a builder (protobuf)
-    	ProtobufJoinTree.Node.Builder treeBuilder = Node.newBuilder();
+    	Node.Builder treeBuilder = nodesQueue.pop();
     	
     	// set the root node with the variables that need to be projected
     	for(int i = 0; i < variables.size(); i++)
     		treeBuilder.addProjection(variables.get(i).getVarName());
-    	
-    	// and add a triple to it
-    	Triple currentTriple = triplesQueue.pop();
-    	ProtobufJoinTree.Triple.Builder rootTriple = buildTriple(currentTriple);
-    	treeBuilder.setTriple(rootTriple);
 
     	// visit the hypergraph to build the tree
     	ProtobufJoinTree.Node.Builder currentNode = treeBuilder;
     	ArrayDeque<NodeTriplePair> visitableNodes = new ArrayDeque<NodeTriplePair>();
-    	while(triplesQueue.size() > 0){
+    	while(nodesQueue.size() > 0){
     		
     		int limitWidth = 0;
-    		String predicate = currentTriple.getPredicate().toString(prefixes);
-    		// if a limit not set, a heuristic based on the predicate decides the width 
+    		// if a limit not set, a heuristic decides the width 
     		if(treeWidth == -1){
-    	    	treeWidth = heuristicWidth(predicate); 
+    	    	treeWidth = heuristicWidth(currentNode); 
     		}
     		
+    		//Triple newTriple = findRelateTriple(currentTriple, triplesQueue);
+    		Node.Builder newNode =  findRelateNode(currentNode, nodesQueue);
     		
-    		Triple newTriple = findRelateTriple(currentTriple, triplesQueue);
-    		
-    		// there are triples that are impossible to join with the current tree
-    		if (newTriple == null) {
+    		// there are nodes that are impossible to join with the current tree width
+    		if (newNode == null) {
     			// set the limit to infinite and execute again
     			treeWidth = Integer.MAX_VALUE;
     			return buildTree();
     		}
     		
-    		
     		// add every possible children (wide tree) or limit to a custom width
     		// stop if a width limit exists and is reached
-    		while(newTriple != null && !(treeWidth > 0 && limitWidth == treeWidth)){
-    			
-    			// create the new child
-    			ProtobufJoinTree.Node.Builder newChild = Node.newBuilder();
-    			newChild.setTriple(buildTriple(newTriple));
+    		while(newNode != null && !(treeWidth > 0 && limitWidth == treeWidth)){
     			
     			// append it to the current node and to the queue
-    			currentNode.addChildren(newChild);
-    			// get the proper builder
-    			int i;
-    			for (i = 0; i < currentNode.getChildrenCount(); i++)
-    				if(currentNode.getChildrenBuilder(i).getTriple().equals(newChild.getTriple())) break;
-    			visitableNodes.add(new NodeTriplePair(currentNode.getChildrenBuilder(i), newTriple));
+    			currentNode.addChildren(newNode);
+    			visitableNodes.add(new NodeTriplePair(newNode, newNode.getTripleGroupList()));
     			
-    			// remove consumed triple and look for another one
-    			triplesQueue.remove(newTriple);
-    			newTriple = findRelateTriple(currentTriple, triplesQueue);
+    			// remove consumed node and look for another one
+    			nodesQueue.remove(newNode);
+    			newNode = findRelateNode(currentNode, nodesQueue);
     			
     			limitWidth++;
     		}
@@ -172,12 +161,63 @@ public class Translator {
     		if(!visitableNodes.isEmpty()){
     			NodeTriplePair currentPair = visitableNodes.pop();
     			currentNode = currentPair.node;
-    			currentTriple = currentPair.triple;
     		}
     	}
     	
     	return treeBuilder.build();
     }
+    
+    private ArrayDeque<Node.Builder> getNodesQueue() {
+    	ArrayDeque<Node.Builder> nodesQueue = new ArrayDeque<ProtobufJoinTree.Node.Builder>();
+    	if(usePropertyTable){
+			HashMap<String, List<Triple>> subjectGroups = new HashMap<String, List<Triple>>();
+			
+			// group by subjects
+			for(Triple triple : triples){
+				String subject = triple.getSubject().toString(prefixes);
+		
+				if (subjectGroups.containsKey(subject)) {
+					subjectGroups.get(subject).add(triple);
+				} else {
+					List<Triple> subjTriples = new ArrayList<Triple>();
+					subjTriples.add(triple);
+					subjectGroups.put(subject, subjTriples);
+				}
+			}
+			
+			// create and add the proper nodes
+			for(String subject : subjectGroups.keySet()){
+				if (subjectGroups.get(subject).size() > 1){
+					nodesQueue.add(buildNode(null, subjectGroups.get(subject)));
+				} else {
+					nodesQueue.add(buildNode(subjectGroups.get(subject).get(0), Collections.<Triple> emptyList()));
+				}
+			}			
+    
+		} else {
+			for(Triple t : triples){
+				nodesQueue.add(buildNode(t, Collections.<Triple> emptyList()));
+			}
+		}
+    	return nodesQueue;
+	}
+
+	private ProtobufJoinTree.Node.Builder buildNode(Triple triple, List<Triple> tripleGroup){
+    	ProtobufJoinTree.Node.Builder nodeBuilder = ProtobufJoinTree.Node.newBuilder();
+    	
+    	if(tripleGroup.isEmpty())
+    		nodeBuilder.setTriple(buildTriple(triple));
+    	else{
+    		
+    		for(int i = 0; i < tripleGroup.size(); i++){
+    			//nodeBuilder.setTripleGroup(i, buildTriple(tripleGroup.get(i)));
+    			nodeBuilder.addTripleGroup(buildTriple(tripleGroup.get(i)));
+    		}
+    	}
+    	
+    	return nodeBuilder;
+    }
+    
     
     /*
      * buildTriple takes as input a Jena Triple
@@ -218,32 +258,79 @@ public class Translator {
     	return tripleBuilder;
     }
     
+    
     /*
-     * findRelateTriple, given a source triple, finds another triple
+     * findRelateNode, given a source node, finds another node
      * with at least one variable in common, if there isn't return null
+     * TODO: clean this mess
      */
-    private Triple findRelateTriple(Triple triple, ArrayDeque<Triple> availableTriples){
-    	if (!triple.getSubject().isVariable() && !triple.getObject().isVariable())
-    		return null;
-    	for(Triple t : availableTriples){
-    		// check if one of the 4 cases is true (SS, SO, OS, OO)
-    		if(t.getObject().isVariable() && (
-    				t.getObject().equals(triple.getSubject()) || t.getObject().equals(triple.getObject())))
-    			return t;
-    		
-    		if(t.getSubject().isVariable() && (
-    				t.getSubject().equals(triple.getSubject()) || t.getSubject().equals(triple.getObject())))
-    			return t;	
-    	}
+    private Node.Builder findRelateNode(Node.Builder sourceNode, ArrayDeque<Node.Builder> availableNodes){
     	
+    	if (sourceNode.getTripleGroupCount() > 0){
+    		// sourceNode is a group
+    		for(tree.ProtobufJoinTree.Triple tripleSource : sourceNode.getTripleGroupList()){
+				for (Node.Builder node : availableNodes){
+					if(node.getTripleGroupCount() > 0) {
+						for(tree.ProtobufJoinTree.Triple tripleDest : node.getTripleGroupList())
+	    					if(existsVariableInCommon(tripleSource, tripleDest))
+	    						return node;
+					} else {
+						if(existsVariableInCommon(tripleSource, node.getTriple()))
+							return node;
+					}
+				}
+    		}
+    		
+    	} else {
+    		// source node is not a group
+    		for (Node.Builder node : availableNodes) {
+    			if(node.getTripleGroupCount() > 0) {
+    				for(tree.ProtobufJoinTree.Triple tripleDest : node.getTripleGroupList()){
+    					if(existsVariableInCommon(tripleDest, sourceNode.getTriple()))
+    						return node;
+    				}
+    			} else {
+    				if(existsVariableInCommon(node.getTriple(), node.getTriple()))
+    					return node;
+    			}
+    		}
+    	}
     	return null;
+    }
+    
+    private boolean existsVariableInCommon(Triple a, Triple b) {
+    	if(a.getObject().isVariable() && (
+    			a.getObject().equals(b.getSubject()) || a.getObject().equals(b.getObject())))
+    		return true;
+    	
+    	if(a.getSubject().isVariable() && (
+    			a.getSubject().equals(b.getSubject()) || a.getSubject().equals(b.getObject())))
+    		return true;
+    	
+    	return false;
+    }
+    
+    private boolean existsVariableInCommon(ProtobufJoinTree.Triple a, ProtobufJoinTree.Triple b) {
+    	ProtobufJoinTree.Triple.ElementType variableType = ProtobufJoinTree.Triple.ElementType.VARIABLE;
+    	if(a.getObject().getType() == variableType && (
+    			a.getObject().equals(b.getSubject()) || a.getObject().equals(b.getObject()))) 
+    		return true;
+		
+    	if(a.getSubject().getType() == variableType && (
+    			a.getSubject().equals(b.getSubject()) || a.getSubject().equals(b.getObject())))
+    		return true;
+    	
+		return false;
     }
     
     /*
      * heuristicWidth decides a width based on the proportion
      * between the number of elements in a table and the unique subjects.
      */
-    private int heuristicWidth(String predicate){
+    private int heuristicWidth(Node.Builder node){
+    	if(!node.getTripleGroupList().isEmpty())
+    		return 5;
+    	String predicate = node.getTriple().getPredicate().getName();
     	int tableSize = stats.getTableSize(predicate);
     	int numberUniqueSubjects = stats.getTableDistinctSubjects(predicate);
     	float proportion = tableSize / numberUniqueSubjects;
@@ -292,5 +379,10 @@ public class Translator {
     	}
     	  	
     }
+
+	public void setPropertyTable(boolean b) {
+		this.usePropertyTable = b;
+		
+	}
     
 }

@@ -20,6 +20,7 @@ import org.apache.log4j.Logger;
  * -i, --input <file> SPARQL query file to translate 
  * -o, --output <file> Specify the filename with the resulting tree.
  * -w, --width <number> the maximum Tree width
+ * -p, --propertytable If set, the translator will create nodes for the property table
  * 
  * @author Matteo Cossu
  */
@@ -29,6 +30,7 @@ public class Main {
 	private static String statsFileName = "";
 	private static final Logger logger = Logger.getLogger(Main.class);
 	private static int treeWidth = -1;
+	private static boolean usePropertyTable = false;
 	
 	public static void main(String[] args) {
 		
@@ -48,6 +50,8 @@ public class Main {
 		options.addOption(helpOpt);
 		Option widthOpt = new Option("w", "width", true, "The maximum Tree width");
 		options.addOption(widthOpt);
+		Option propertyTableOpt = new Option("p", "propertytable", false, "Use also property table");
+		options.addOption(propertyTableOpt);
 		
 		HelpFormatter formatter = new HelpFormatter();
 		CommandLine cmd = null;
@@ -79,11 +83,16 @@ public class Main {
 			treeWidth = Integer.valueOf(cmd.getOptionValue("width"));
 			logger.info("Maximum tree width is set to " + String.valueOf(treeWidth));
 		}
+		if(cmd.hasOption("propertytable")){
+			usePropertyTable = true;
+			logger.info("Using property table additional option");
+		}
 		
 		/*
 		 * Translation Phase
 		 */
 		Translator translator = new Translator(inputFile, outputFile, statsFileName, treeWidth);
+		if (usePropertyTable) translator.setPropertyTable(true);
 		translator.translateQuery();
 	}
 
