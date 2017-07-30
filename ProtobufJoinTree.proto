@@ -3,6 +3,8 @@ Protobuf definition of the JoinTree.
 The Node type is used to represent a tree where the nodes contain RDF triples.
 @author: Matteo Cossu
 */
+import "ProtobufStats.proto";
+
 
 message Triple {
 	enum ElementType {
@@ -20,7 +22,8 @@ message Triple {
 }
 
 message Node {
-	required Triple triple = 1;
+	optional Triple triple = 1;
 	repeated Node children = 2;
 	repeated string projection = 3;
+	repeated Triple tripleGroup = 4;
 }
