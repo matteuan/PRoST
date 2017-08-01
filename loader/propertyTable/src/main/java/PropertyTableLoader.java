@@ -105,7 +105,7 @@ public class PropertyTableLoader {
 	 */
 	public void buildTripleTable() throws FileNotFoundException{
 		String createTripleTable = String.format(
-				"CREATE EXTERNAL TABLE %s(%s STRING, %s STRING, %s STRING) ROW FORMAT DELIMITED"
+				"CREATE EXTERNAL TABLE IF NOT EXISTS %s(%s STRING, %s STRING, %s STRING) ROW FORMAT DELIMITED"
 						+ " FIELDS TERMINATED BY '%s'  LINES TERMINATED BY '%s' LOCATION '%s'",
 						tablename_tripletable  , column_name_subject, column_name_predicate, column_name_object,
 				field_terminator, line_terminator, hdfs_input_directory);
