@@ -92,19 +92,6 @@ public class Translator {
         logger.info("Output file written with success");
     }
     
-    private class NodeTriplePair {
-        public ProtobufJoinTree.Node.Builder node;
-        public Triple triple;
-        public List<tree.ProtobufJoinTree.Triple> tripleGroup;
-
-        public NodeTriplePair(ProtobufJoinTree.Node.Builder node, List<ProtobufJoinTree.Triple> tripleGroup){
-            this.node = node;
-            this.triple = null;
-            this.tripleGroup = tripleGroup;
-        }
-
-    }
-    
     
     /*
      * buildTree constructs the JoinTree, ready to be serialized.
@@ -123,8 +110,8 @@ public class Translator {
 
     	// visit the hypergraph to build the tree
     	ProtobufJoinTree.Node.Builder currentNode = treeBuilder;
-    	ArrayDeque<NodeTriplePair> visitableNodes = new ArrayDeque<NodeTriplePair>();
-    	while(nodesQueue.size() > 0){
+    	ArrayDeque<Node.Builder> visitableNodes = new ArrayDeque<Node.Builder>();
+    	while(!nodesQueue.isEmpty()){
     		
     		int limitWidth = 0;
     		// if a limit not set, a heuristic decides the width 
@@ -148,7 +135,12 @@ public class Translator {
     			
     			// append it to the current node and to the queue
     			currentNode.addChildren(newNode);
-    			visitableNodes.add(new NodeTriplePair(newNode, newNode.getTripleGroupList()));
+    			
+    			// get the proper builder
+    			int i = 0;
+    			for (i = 0; i < currentNode.getChildrenCount(); i++)
+    				if(currentNode.getChildrenBuilder(i).equals(newNode)) break;
+    			visitableNodes.add(currentNode.getChildrenBuilder(i - 1));
     			
     			// remove consumed node and look for another one
     			nodesQueue.remove(newNode);
@@ -158,9 +150,9 @@ public class Translator {
     		}
     		
     		// next Node is one of the children
-    		if(!visitableNodes.isEmpty()){
-    			NodeTriplePair currentPair = visitableNodes.pop();
-    			currentNode = currentPair.node;
+    		if(!visitableNodes.isEmpty() && !nodesQueue.isEmpty()){
+    			currentNode = visitableNodes.pop();
+    			
     		}
     	}
     	
