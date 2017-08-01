@@ -105,13 +105,17 @@ public class Node {
 		// objects
 		for(Triple t : tripleGroup){
 			if (t.objectType == ElementType.CONSTANT){
-				whereConditions.add(Utils.toMetastoreName(t.predicate) + "='" + t.object + "'");
+				if (t.isComplex)
+					whereConditions.add("array_contains(" + Utils.toMetastoreName(t.predicate) + ", '" + t.object + "')");
+				else
+					whereConditions.add(Utils.toMetastoreName(t.predicate) + "='" + t.object + "'");
 			} else if (t.isComplex){
 				query.append(" explode(" + Utils.toMetastoreName(t.predicate) + ") AS " + 
 						Utils.removeQuestionMark(t.object) + ",");
 			} else {
 				query.append(" " + Utils.toMetastoreName(t.predicate) + " AS " +
 						Utils.removeQuestionMark(t.object) + ",");
+				whereConditions.add(Utils.toMetastoreName(t.predicate) + " IS NOT NULL");
 			} 
 		}
 		
