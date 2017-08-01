@@ -1,5 +1,7 @@
 package tree;
 
+import java.util.List;
+
 
 
 public class Utils {
@@ -23,7 +25,7 @@ public class Utils {
 	 * findCommonVariable find a return the common variable between two triples.
 	 * 
 	 */
-	public static String findCommonVariable(Triple a, Triple b){
+	private static String findCommonVariable(Triple a, Triple b){
 		if(a.subjectType == ElementType.VARIABLE && 
 				(removeQuestionMark(a.subject).equals(removeQuestionMark(b.subject)) 
 						|| removeQuestionMark(a.subject).equals(removeQuestionMark(b.object))))
@@ -32,6 +34,27 @@ public class Utils {
 				(removeQuestionMark(a.object).equals(removeQuestionMark(b.subject)) 
 						|| removeQuestionMark(a.object).equals(removeQuestionMark(b.object))))
 			return removeQuestionMark(a.object);
+		return null;
+	}
+	
+	public static String findCommonVariable(Triple tripleA, List<Triple> tripleGroupA, 
+			Triple tripleB, List<Triple> tripleGroupB){
+		// triple with triple case
+		if(tripleGroupA.isEmpty() && tripleGroupB.isEmpty())
+			return findCommonVariable(tripleA, tripleB);
+		if(!tripleGroupA.isEmpty() && !tripleGroupB.isEmpty())
+			for(Triple at : tripleGroupA)
+				for(Triple bt : tripleGroupB)
+					if(findCommonVariable(at, bt) != null)
+						return findCommonVariable(at, bt);
+		if(tripleGroupA.isEmpty())
+			for(Triple bt : tripleGroupB)
+				if(findCommonVariable(tripleA, bt) != null)
+					return findCommonVariable(tripleA, bt);
+		if(tripleGroupB.isEmpty())
+			for(Triple at : tripleGroupA)
+				if(findCommonVariable(at, tripleB) != null)
+					return findCommonVariable(at, tripleB);
 		return null;
 	}
 

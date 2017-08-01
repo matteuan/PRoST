@@ -1,5 +1,7 @@
 package tree;
 
+import tree.ProtobufStats.Table;
+
 
 
 public class Triple {
@@ -9,6 +11,7 @@ public class Triple {
 	public ElementType subjectType;
 	public ElementType objectType;
 	public ElementType predicateType;
+	public boolean isComplex = false;
 	
 	// construct from single properties
 	public Triple(String subject, String predicate, String object, 
@@ -29,6 +32,12 @@ public class Triple {
 		this.predicateType = convertElementType(triple.getPredicate().getType());
 		this.object = triple.getObject().getName();
 		this.objectType = convertElementType(triple.getObject().getType());
+		
+		if (triple.hasStats()){
+			Table statsTable = triple.getStats();
+			isComplex = statsTable.getDistinctSubjects() < statsTable.getSize();
+		}
+		
 	}
 	
 	/*
