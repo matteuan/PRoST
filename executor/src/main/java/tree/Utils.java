@@ -55,6 +55,7 @@ public class Utils {
 			for(Triple at : tripleGroupA)
 				if(findCommonVariable(at, tripleB) != null)
 					return findCommonVariable(at, tripleB);
+		
 		return null;
 	}
 
