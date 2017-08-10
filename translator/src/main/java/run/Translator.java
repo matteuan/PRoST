@@ -8,10 +8,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.PriorityQueue;
 
 import org.apache.log4j.Logger;
 
 import tree.ProtobufJoinTree;
+import tree.ProtobufJoinTree.Node.Builder;
 import tree.Stats;
 import tree.ProtobufJoinTree.Node;
 
@@ -100,9 +102,9 @@ public class Translator {
     	// sort the triples before adding them
     	//this.sortTriples();    	
     	
-    	ArrayDeque<Node.Builder> nodesQueue = getNodesQueue();
+    	PriorityQueue<Node.Builder> nodesQueue = getNodesQueue();
     	
-    	Node.Builder treeBuilder = nodesQueue.pop();
+    	Node.Builder treeBuilder = nodesQueue.poll();
     	
     	// set the root node with the variables that need to be projected
     	for(int i = 0; i < variables.size(); i++)
@@ -123,7 +125,7 @@ public class Translator {
     		Node.Builder newNode =  findRelateNode(currentNode, nodesQueue);
     		
     		// there are nodes that are impossible to join with the current tree width
-    		if (newNode == null) {
+    		if (newNode == null && visitableNodes.isEmpty()) {
     			// set the limit to infinite and execute again
     			treeWidth = Integer.MAX_VALUE;
     			return buildTree();
@@ -158,9 +160,11 @@ public class Translator {
     	
     	return treeBuilder.build();
     }
+        
     
-    private ArrayDeque<Node.Builder> getNodesQueue() {
-    	ArrayDeque<Node.Builder> nodesQueue = new ArrayDeque<ProtobufJoinTree.Node.Builder>();
+    private PriorityQueue<Builder> getNodesQueue() {
+    	PriorityQueue<Builder> nodesQueue = new PriorityQueue<ProtobufJoinTree.Node.Builder>
+    		(triples.size(), new NodeComparator(this.stats));
     	if(usePropertyTable){
 			HashMap<String, List<Triple>> subjectGroups = new HashMap<String, List<Triple>>();
 			
@@ -256,7 +260,7 @@ public class Translator {
      * with at least one variable in common, if there isn't return null
      * TODO: clean this mess
      */
-    private Node.Builder findRelateNode(Node.Builder sourceNode, ArrayDeque<Node.Builder> availableNodes){
+    private Node.Builder findRelateNode(Node.Builder sourceNode, PriorityQueue<Node.Builder> availableNodes){
     	
     	if (sourceNode.getTripleGroupCount() > 0){
     		// sourceNode is a group
@@ -282,7 +286,7 @@ public class Translator {
     						return node;
     				}
     			} else {
-    				if(existsVariableInCommon(node.getTriple(), node.getTriple()))
+    				if(existsVariableInCommon(sourceNode.getTriple(), node.getTriple()))
     					return node;
     			}
     		}
