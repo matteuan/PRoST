@@ -32,13 +32,15 @@ import com.hp.hpl.jena.sparql.core.Var;
  * @author Matteo Cossu
  */
 public class Translator {
-
+	
+	final int DEFAULT_MIN_GROUP_SIZE = 2;
     String inputFile;
     String outputFile;
     String statsFile;
     Stats stats;
     boolean statsActive = false;
     int treeWidth;
+    int minimumGroupSize = DEFAULT_MIN_GROUP_SIZE;
     PrefixMapping prefixes;
     List<Var> variables;
     List<Triple> triples;
@@ -183,10 +185,11 @@ public class Translator {
 			
 			// create and add the proper nodes
 			for(String subject : subjectGroups.keySet()){
-				if (subjectGroups.get(subject).size() > 1){
+				if (subjectGroups.get(subject).size() >= minimumGroupSize){
 					nodesQueue.add(buildNode(null, subjectGroups.get(subject)));
 				} else {
-					nodesQueue.add(buildNode(subjectGroups.get(subject).get(0), Collections.<Triple> emptyList()));
+					for (Triple t : subjectGroups.get(subject))
+						nodesQueue.add(buildNode(t, Collections.<Triple> emptyList()));
 				}
 			}			
     
@@ -378,7 +381,10 @@ public class Translator {
 
 	public void setPropertyTable(boolean b) {
 		this.usePropertyTable = b;
-		
+	}
+	
+	public void setMinimumGroupSize(int size){
+		this.minimumGroupSize = size;
 	}
     
 }

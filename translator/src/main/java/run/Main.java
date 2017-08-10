@@ -21,6 +21,7 @@ import org.apache.log4j.Logger;
  * -o, --output <file> Specify the filename with the resulting tree.
  * -w, --width <number> the maximum Tree width
  * -p, --propertytable If set, the translator will create nodes for the property table
+ * -g, --groupsize <number> the minimum size for property table groups (default = 2)
  * 
  * @author Matteo Cossu
  */
@@ -31,6 +32,7 @@ public class Main {
 	private static final Logger logger = Logger.getLogger(Main.class);
 	private static int treeWidth = -1;
 	private static boolean usePropertyTable = false;
+	private static int setGroupSize = -1;
 	
 	public static void main(String[] args) {
 		
@@ -52,6 +54,8 @@ public class Main {
 		options.addOption(widthOpt);
 		Option propertyTableOpt = new Option("p", "propertytable", false, "Use also property table");
 		options.addOption(propertyTableOpt);
+		Option groupsizeOpt = new Option("g", "groupsize", true, "Minimum Group Size");
+		options.addOption(groupsizeOpt);
 		
 		HelpFormatter formatter = new HelpFormatter();
 		CommandLine cmd = null;
@@ -87,12 +91,17 @@ public class Main {
 			usePropertyTable = true;
 			logger.info("Using property table additional option");
 		}
+		if(cmd.hasOption("groupsize")){
+			setGroupSize = Integer.valueOf(cmd.getOptionValue("groupsize"));
+			logger.info("Minimum Group Size set to " + String.valueOf(setGroupSize));
+		}
 		
 		/*
 		 * Translation Phase
 		 */
 		Translator translator = new Translator(inputFile, outputFile, statsFileName, treeWidth);
 		if (usePropertyTable) translator.setPropertyTable(true);
+		if (setGroupSize > 0) translator.setMinimumGroupSize(setGroupSize);
 		translator.translateQuery();
 	}
 
