@@ -1,6 +1,9 @@
+import java.io.BufferedWriter;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.sql.ResultSet;
 import java.text.ParseException;
 
@@ -70,7 +73,15 @@ public class Executor {
 		sqlContext.sql("USE "+ this.databaseName);
 		logger.info("USE "+ this.databaseName);
 		
-		
+		PrintWriter out;
+		try {
+			FileWriter fw = new FileWriter("RESULTS.txt", true);
+		    BufferedWriter bw = new BufferedWriter(fw);
+		    out = new PrintWriter(bw);
+		} catch (IOException e) {
+			logger.error("Cannot write results file");
+			return;
+		}
 		long totalStartTime = System.currentTimeMillis();
 		
 		// compute the singular nodes data
@@ -111,6 +122,10 @@ public class Executor {
 		logger.info("Results saved into: " + resultsTable);
 		executionTime = System.currentTimeMillis() - startTime;
 		logger.info("Execution time JOINS: " + String.valueOf(executionTime));
+		
+		
+		out.write(inputFile + " " + String.valueOf(executionTime) + "\n");
+		out.close();
 		
 		long totalExecutionTime = System.currentTimeMillis() - totalStartTime;
 		logger.info("Total execution time: " + String.valueOf(totalExecutionTime));

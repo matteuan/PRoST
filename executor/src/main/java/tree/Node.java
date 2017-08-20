@@ -98,6 +98,7 @@ public class Node {
 		
 		StringBuilder query = new StringBuilder("SELECT ");
 		ArrayList<String> whereConditions = new ArrayList<String>();		
+		ArrayList<String> explodedColumns = new ArrayList<String>();
 		
 		// subject
 		query.append("s AS " + Utils.removeQuestionMark(tripleGroup.get(0).subject) + ",");
@@ -110,8 +111,12 @@ public class Node {
 				else
 					whereConditions.add(Utils.toMetastoreName(t.predicate) + "='" + t.object + "'");
 			} else if (t.isComplex){
-				query.append(" explode(" + Utils.toMetastoreName(t.predicate) + ") AS " + 
-						Utils.removeQuestionMark(t.object) + ",");
+				String columnName = Utils.toMetastoreName(t.predicate);
+				query.append(" P" + columnName +" AS " +
+					Utils.removeQuestionMark(t.object) + ",");
+				explodedColumns.add(columnName);
+				//query.append(" explode(" + Utils.toMetastoreName(t.predicate) + ") AS " + 
+				//		Utils.removeQuestionMark(t.object) + ",");
 			} else {
 				query.append(" " + Utils.toMetastoreName(t.predicate) + " AS " +
 						Utils.removeQuestionMark(t.object) + ",");
@@ -124,6 +129,12 @@ public class Node {
 		
 		// TODO: parameterize the name of the table
 		query.append(" FROM property_table ");
+		for(String explodedColumn : explodedColumns){
+			query.append("\n lateral view explode(" + explodedColumn +") exploded" + explodedColumn +
+					" AS P" + explodedColumn);
+		}
+		
+		
 		if(!whereConditions.isEmpty()){
 			query.append(" WHERE ");
 			query.append(String.join(" AND ", whereConditions));
