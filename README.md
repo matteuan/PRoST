@@ -1,4 +1,4 @@
-# SparkVP
+# Partitioned RDF on Spark Tables (PRoST)
 Query large RDF graph with SPARQL using Spark. 
 The project is divided in three modules:
 + The **loader** takes as input a file in HDFS, containing a RDF graph, and loads its content using Vertical Partitioning in the Hive Metastore.
